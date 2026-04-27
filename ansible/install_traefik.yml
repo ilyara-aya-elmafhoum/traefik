@@ -1,28 +1,27 @@
 ---
-# =============================================================
-# Playbook : Installation Traefik Reverse Proxy
-# Exécuté via SemaphoreUI après provisionnement Terraform
-#
-# Variables attendues (injectées par SemaphoreUI) :
-#   - traefik_acme_email : Email pour Let's Encrypt
-# =============================================================
-
 - name: Installer et configurer Traefik reverse proxy
   hosts: traefik
   become: true
   remote_user: ansible-boot
-
   pre_tasks:
     - name: Attendre la fin du cloud-init
-      wait_for:
-        path: /var/lib/cloud/instance/boot-finished
-        timeout: 300
+      ansible.builtin.command: cloud-init status --wait
+      changed_when: false
+      timeout: 300
+
+    - name: S'assurer que Docker est installé
+      ansible.builtin.apt:
+        name: docker.io
+        state: present
+      register: docker_install
+      retries: 3
+      delay: 10
+      until: docker_install is success
 
     - name: S'assurer que Docker est démarré
-      systemd:
+      ansible.builtin.systemd:
         name: docker
         state: started
         enabled: true
-
   roles:
     - traefik
