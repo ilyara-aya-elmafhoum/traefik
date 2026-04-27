@@ -1,0 +1,25 @@
+# Généré par Ansible — ne pas modifier manuellement
+version: "3.9"
+
+services:
+  traefik:
+    image: traefik:{{ traefik_version }}
+    container_name: traefik
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
+    volumes:
+      - {{ traefik_base_dir }}/traefik.yml:/etc/traefik/traefik.yml:ro
+      - {{ traefik_base_dir }}/dynamic/:/etc/traefik/dynamic/:ro
+      - {{ traefik_base_dir }}/acme/acme.json:/acme/acme.json
+      - /var/log/traefik:/var/log/traefik
+    networks:
+      - traefik-net
+    environment:
+      - TZ=Europe/Paris
+
+networks:
+  traefik-net:
+    name: traefik-net

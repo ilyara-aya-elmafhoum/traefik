@@ -1,0 +1,9 @@
+---
+# =============================================================
+# Variables du rôle Traefik
+#
+# traefik_acme_email → injecté par SemaphoreUI
+# =============================================================
+
+traefik_version: "v3.1"
+traefik_base_dir: /opt/traefik

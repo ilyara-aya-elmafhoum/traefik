@@ -1,0 +1,8 @@
+---
+- name: Recharger systemd
+  systemd:
+    daemon_reload: true
+
+- name: Redémarrer Traefik
+  command: docker compose -f {{ traefik_base_dir }}/docker-compose.yml up -d --remove-orphans
+  changed_when: false

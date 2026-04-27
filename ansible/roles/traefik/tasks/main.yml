@@ -1,0 +1,110 @@
+---
+# =============================================================
+# Rôle : traefik
+# Installation de Traefik v3 + configuration initiale
+# =============================================================
+
+# ── 1. Créer l'arborescence ──────────────────────────────────
+- name: Créer le répertoire Traefik
+  file:
+    path: "{{ traefik_base_dir }}"
+    state: directory
+    owner: root
+    group: docker
+    mode: "0750"
+
+- name: Créer les sous-répertoires
+  file:
+    path: "{{ traefik_base_dir }}/{{ item }}"
+    state: directory
+    owner: root
+    group: docker
+    mode: "0750"
+  loop:
+    - dynamic
+    - acme
+
+- name: Créer les répertoires de logs
+  file:
+    path: /var/log/traefik
+    state: directory
+    owner: root
+    group: docker
+    mode: "0750"
+
+# ── 2. Créer le fichier acme.json avec permissions strictes ──
+- name: Créer acme.json
+  file:
+    path: "{{ traefik_base_dir }}/acme/acme.json"
+    state: touch
+    owner: root
+    group: root
+    mode: "0600"
+  changed_when: false
+
+# ── 3. Déployer la configuration statique Traefik ────────────
+- name: Déployer traefik.yml (config statique)
+  template:
+    src: traefik.yml.j2
+    dest: "{{ traefik_base_dir }}/traefik.yml"
+    owner: root
+    group: docker
+    mode: "0640"
+  notify: Redémarrer Traefik
+
+# ── 4. Déployer le docker-compose.yml ────────────────────────
+- name: Déployer docker-compose.yml
+  template:
+    src: docker-compose.yml.j2
+    dest: "{{ traefik_base_dir }}/docker-compose.yml"
+    owner: root
+    group: docker
+    mode: "0640"
+  notify: Redémarrer Traefik
+
+# ── 5. Déployer le service systemd ───────────────────────────
+- name: Déployer le service systemd traefik-stack
+  template:
+    src: traefik-stack.service.j2
+    dest: /etc/systemd/system/traefik-stack.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Recharger systemd
+    - Redémarrer Traefik
+
+# ── 6. Pull de l'image Docker ────────────────────────────────
+- name: Pull de l'image Traefik
+  command: docker pull traefik:{{ traefik_version }}
+  changed_when: false
+
+# ── 7. Démarrer la stack ─────────────────────────────────────
+- name: Démarrer la stack Traefik
+  command: docker compose -f {{ traefik_base_dir }}/docker-compose.yml up -d --remove-orphans
+  changed_when: false
+
+# ── 8. Activer le service systemd ────────────────────────────
+- name: Activer le service traefik-stack au boot
+  systemd:
+    name: traefik-stack
+    enabled: true
+    daemon_reload: true
+
+# ── 9. Health check ──────────────────────────────────────────
+- name: Attendre que Traefik réponde sur le port 443
+  wait_for:
+    port: 443
+    host: "0.0.0.0"
+    timeout: 120
+    state: started
+
+- name: Vérifier le dashboard Traefik
+  uri:
+    url: "http://127.0.0.1:8080/api/overview"
+    method: GET
+    status_code: 200
+  register: traefik_health
+  retries: 5
+  delay: 10
+  until: traefik_health.status == 200

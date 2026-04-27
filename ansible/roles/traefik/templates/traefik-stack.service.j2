@@ -1,0 +1,16 @@
+# Généré par Ansible — ne pas modifier manuellement
+[Unit]
+Description=Traefik Reverse Proxy Stack
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory={{ traefik_base_dir }}
+ExecStart=/usr/bin/docker compose -f {{ traefik_base_dir }}/docker-compose.yml up -d --remove-orphans
+ExecStop=/usr/bin/docker compose -f {{ traefik_base_dir }}/docker-compose.yml down
+TimeoutStartSec=120
+
+[Install]
+WantedBy=multi-user.target
